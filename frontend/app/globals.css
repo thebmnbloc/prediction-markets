@@ -135,3 +135,20 @@ pre {
   font-size: 12px;
   overflow: auto;
 }
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(10,15,31,0.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.nav .brand { font-weight: 700; color: var(--text); }
+.nav-links { display: flex; gap: 16px; }
+.nav-links a { color: var(--muted); font-size: 14px; }
+.nav-links a:hover { color: var(--text); }
+.app { padding-top: 8px; }
