@@ -27,3 +27,4 @@ frontend/out/
 *.db
 *.db-shm
 *.db-wal
+.env.local
