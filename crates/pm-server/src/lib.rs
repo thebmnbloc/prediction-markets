@@ -57,6 +57,7 @@ pub fn app_with_state(state: AppState) -> Router {
             get(list_cross_links).post(create_cross_link),
         )
         .route("/consistency/check", post(check_consistency))
+        .route("/backtest/run", post(run_backtest))
         .with_state(state)
         .layer(cors())
 }
@@ -467,6 +468,73 @@ async fn paper_positions(State(state): State<AppState>) -> Json<Vec<serde_json::
 async fn list_audit_events(State(state): State<AppState>) -> Json<Vec<crate::state::AuditEvent>> {
     let events = state.audit_events.lock().await;
     Json(events.clone())
+}
+
+#[derive(serde::Deserialize)]
+struct BacktestReq {
+    prices: Vec<String>,
+    model_probability: Option<String>,
+    fee: Option<String>,
+}
+
+async fn run_backtest(Json(req): Json<BacktestReq>) -> Json<serde_json::Value> {
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+    let p = req
+        .model_probability
+        .as_deref()
+        .and_then(|s| Decimal::from_str(s).ok())
+        .unwrap_or_else(|| Decimal::new(55, 2));
+    let fee = req
+        .fee
+        .as_deref()
+        .and_then(|s| Decimal::from_str(s).ok())
+        .unwrap_or_else(|| Decimal::new(1, 2));
+    let mut trades = 0i64;
+    let mut wins = 0i64;
+    let mut total_ev = Decimal::ZERO;
+    let mut equity = Decimal::ZERO;
+    let mut peak = Decimal::ZERO;
+    let mut max_dd = Decimal::ZERO;
+    for price_str in &req.prices {
+        if let Ok(price) = Decimal::from_str(price_str) {
+            let ev = p - price - fee;
+            if ev > Decimal::ZERO {
+                trades += 1;
+                total_ev += ev;
+                equity += ev;
+                if equity > peak {
+                    peak = equity;
+                }
+                let dd = peak - equity;
+                if dd > max_dd {
+                    max_dd = dd;
+                }
+                // simplified win if model prob > price
+                if p > price {
+                    wins += 1;
+                }
+            }
+        }
+    }
+    let win_rate = if trades > 0 {
+        Decimal::from(wins) / Decimal::from(trades)
+    } else {
+        Decimal::ZERO
+    };
+    let avg_ev = if trades > 0 {
+        total_ev / Decimal::from(trades)
+    } else {
+        Decimal::ZERO
+    };
+    Json(serde_json::json!({
+        "trades": trades,
+        "wins": wins,
+        "win_rate": win_rate.to_string(),
+        "avg_net_ev": avg_ev.to_string(),
+        "total_net_ev": total_ev.to_string(),
+        "max_drawdown": max_dd.to_string(),
+    }))
 }
 
 #[derive(OpenApi)]
