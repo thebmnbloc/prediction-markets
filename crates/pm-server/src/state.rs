@@ -20,6 +20,17 @@ pub struct SignalRecord {
 }
 
 #[derive(Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuditEvent {
+    pub id: String,
+    pub actor_type: String,
+    pub action: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub details: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CrossMarketLink {
     pub id: String,
     pub market_a_id: String,
@@ -48,6 +59,7 @@ pub struct AppState {
     pub signals: Arc<tokio::sync::Mutex<Vec<SignalRecord>>>,
     pub paper_orders: Arc<tokio::sync::Mutex<Vec<PaperOrder>>>,
     pub cross_links: Arc<tokio::sync::Mutex<Vec<CrossMarketLink>>>,
+    pub audit_events: Arc<tokio::sync::Mutex<Vec<AuditEvent>>>,
     pub store: Option<Arc<TradeStore>>,
 }
 
@@ -76,6 +88,7 @@ impl AppState {
             signals: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             paper_orders: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             cross_links: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            audit_events: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             store,
         }
     }

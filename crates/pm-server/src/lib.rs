@@ -50,6 +50,8 @@ pub fn app_with_state(state: AppState) -> Router {
             get(list_paper_orders).post(create_paper_order),
         )
         .route("/signals/:id", get(get_signal))
+        .route("/paper/positions", get(paper_positions))
+        .route("/audit-events", get(list_audit_events))
         .route(
             "/cross-market-links",
             get(list_cross_links).post(create_cross_link),
@@ -254,6 +256,18 @@ async fn refresh_signals(
     }
     let mut sigs = state.signals.lock().await;
     *sigs = out.clone();
+    drop(sigs);
+    let mut audits = state.audit_events.lock().await;
+    let n = audits.len();
+    audits.push(crate::state::AuditEvent {
+        id: format!("audit-{}", n),
+        actor_type: "system".to_string(),
+        action: "signals_refreshed".to_string(),
+        entity_type: "signal".to_string(),
+        entity_id: "batch".to_string(),
+        details: format!("{} candidates", out.len()),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    });
     Ok(Json(out))
 }
 
@@ -279,6 +293,17 @@ async fn create_paper_order(
         status: "open".to_string(),
     };
     state.paper_orders.lock().await.push(order.clone());
+    let mut audits = state.audit_events.lock().await;
+    let n = audits.len();
+    audits.push(crate::state::AuditEvent {
+        id: format!("audit-{}", n),
+        actor_type: "user".to_string(),
+        action: "paper_order_created".to_string(),
+        entity_type: "paper_order".to_string(),
+        entity_id: order.id.clone(),
+        details: format!("{} {} @ {}", order.side, order.size, order.price),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    });
     Json(order)
 }
 
@@ -389,6 +414,59 @@ async fn check_consistency(Json(req): Json<ConsistencyReq>) -> Json<serde_json::
         "p_b": pb.to_string(),
         "tolerance": tol.to_string(),
     }))
+}
+
+async fn paper_positions(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+    let orders = state.paper_orders.lock().await;
+    // group by market
+    let mut markets: std::collections::BTreeMap<String, (Decimal, Decimal, Decimal)> = std::collections::BTreeMap::new();
+    // (net_qty, cost, count)
+    for o in orders.iter() {
+        let qty = Decimal::from_str(&o.size).unwrap_or(Decimal::ZERO);
+        let price = Decimal::from_str(&o.price).unwrap_or(Decimal::ZERO);
+        let signed = if o.side == "buy" { qty } else { -qty };
+        let entry = markets.entry(o.market_id.clone()).or_insert((Decimal::ZERO, Decimal::ZERO, Decimal::ZERO));
+        entry.0 += signed;
+        entry.1 += signed * price;
+        entry.2 += qty;
+    }
+    let mut out = Vec::new();
+    for (market_id, (net_qty, cost, _)) in markets {
+        let avg = if net_qty != Decimal::ZERO { cost / net_qty } else { Decimal::ZERO };
+        // fetch current mid
+        let current = state
+            .polymarket
+            .get_orderbook(&market_id)
+            .await
+            .ok()
+            .and_then(|b| {
+                let bid = b.bids.first().map(|l| l.price);
+                let ask = b.asks.first().map(|l| l.price);
+                match (bid, ask) {
+                    (Some(b), Some(a)) => Some((b + a) / Decimal::from(2)),
+                    (Some(b), None) => Some(b),
+                    (None, Some(a)) => Some(a),
+                    _ => None,
+                }
+            })
+            .unwrap_or(Decimal::ZERO);
+        let unrealized = (current - avg) * net_qty;
+        out.push(serde_json::json!({
+            "market_id": market_id,
+            "net_quantity": net_qty.to_string(),
+            "avg_entry_price": avg.to_string(),
+            "current_price": current.to_string(),
+            "unrealized_pnl": unrealized.to_string(),
+        }));
+    }
+    Json(out)
+}
+
+async fn list_audit_events(State(state): State<AppState>) -> Json<Vec<crate::state::AuditEvent>> {
+    let events = state.audit_events.lock().await;
+    Json(events.clone())
 }
 
 #[derive(OpenApi)]

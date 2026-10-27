@@ -19,6 +19,7 @@ export default function Home() {
   const [selected, setSelected] = useState("");
   const [book, setBook] = useState<OrderBook | null>(null);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [price, setPrice] = useState("0.50");
   const [qty, setQty] = useState("5");
@@ -41,13 +42,30 @@ export default function Home() {
       .catch(() => setBook(null));
   }, [selected]);
 
+  const categoryKeywords: Record<string, string[]> = {
+    Crypto: ["bitcoin", "btc", "eth", "crypto", "token", "solana"],
+    Finance: ["stock", "fed", "rate", "inflation", "gdp", "market", "finance"],
+    Geopolitics: ["war", "election", "president", "china", "russia", "ukraine", "nato"],
+    Esports: ["esport", "league of legends", "dota", "cs2", "valorant"],
+    Sports: ["nba", "nfl", "mlb", "soccer", "tennis", "game"],
+    Weather: ["weather", "temperature", "hurricane", "rain"],
+  };
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return [...markets]
       .sort((a, b) => Number(b.volume || 0) - Number(a.volume || 0))
-      .filter((m) => (m.title || m.id.id).toLowerCase().includes(q))
+      .filter((m) => {
+        const text = (m.title || m.id.id).toLowerCase();
+        if (q && !text.includes(q)) return false;
+        if (category !== "All") {
+          const kws = categoryKeywords[category] || [];
+          if (!kws.some((k) => text.includes(k))) return false;
+        }
+        return true;
+      })
       .slice(0, 60);
-  }, [markets, query]);
+  }, [markets, query, category]);
 
   const selectedMarket = markets.find((m) => m.id.id === selected);
 
@@ -106,6 +124,19 @@ export default function Home() {
 
         <div className="card span-8">
           <h2>Markets</h2>
+          <div className="row" style={{ marginBottom: 10 }}>
+            {["All", "Crypto", "Finance", "Geopolitics", "Esports", "Sports", "Weather"].map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                style={{
+                  background: category === c ? "linear-gradient(135deg,#4f8cff,#22d3ee)" : "var(--panel-2)",
+                }}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
           <input
             className="input"
             style={{ width: "100%", marginBottom: 10 }}
