@@ -1,0 +1,16 @@
+[package]
+name = "pm-execution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Order routing and fill handling"
+
+[dependencies]
+pm-core = { path = "../pm-core" }
+pm-risk = { path = "../pm-risk" }
+tokio = { workspace = true }
+serde = { workspace = true }
+rust_decimal = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }

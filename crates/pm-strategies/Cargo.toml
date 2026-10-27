@@ -1,0 +1,21 @@
+[package]
+name = "pm-strategies"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Trading strategies: cross-exchange arb, bundle arb, market maker"
+
+[dependencies]
+pm-core = { path = "../pm-core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+dashmap = { workspace = true }
