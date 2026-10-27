@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/pm-core",
-    "crates/pm-collector",
     "crates/pm-polymarket",
     "crates/pm-strategies",
     "crates/pm-risk",
