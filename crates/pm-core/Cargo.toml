@@ -1,0 +1,23 @@
+[package]
+name = "pm-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core types, traits, errors, and configuration for the prediction markets quant trading system"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+strum = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+config = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
